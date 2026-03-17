@@ -237,7 +237,9 @@
         resultBox.textContent = data.result || '결과가 비어 있습니다.';
         statusText.innerHTML = '상태: <span class="ok">완료</span> · 실제 AI 응답 연결 성공';
       } catch (error) {
-        resultBox.textContent = '오류가 발생했습니다.\n\n' + error.message;
+        resultBox.textContent = '오류가 발생했습니다.
+
+' + error.message;
         statusText.innerHTML = '상태: <span class="danger">오류</span> · API 연결 실패';
       } finally {
         summarizeBtn.disabled = false;
