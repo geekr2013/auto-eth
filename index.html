@@ -109,7 +109,7 @@
       cursor: pointer;
     }
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.65;
       cursor: not-allowed;
     }
     .primary {
@@ -125,6 +125,7 @@
       margin-top: 12px;
       font-size: 13px;
       color: var(--muted);
+      line-height: 1.7;
     }
     .ok { color: var(--accent-2); }
     .warn { color: var(--warn); }
@@ -168,10 +169,10 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="eyebrow">실효성 검증용 1호기</div>
+    <div class="eyebrow">Amazon · Etsy Listing Generator</div>
     <h1>Auto Listing Lab</h1>
     <p class="sub">
-      한글 상품 정보만 넣으면 Amazon / Etsy용 영문 상품 제목, 핵심 포인트, 설명문, 태그를 자동 생성합니다.
+      한글 상품 정보만 입력하면 Amazon 및 Etsy용 영문 상품 제목, 핵심 포인트, 설명문, 태그를 자동으로 생성합니다.
     </p>
 
     <div class="layout">
@@ -192,7 +193,7 @@
         </div>
 
         <div class="field">
-          <label class="label" for="features">핵심 특징 3개 이상 *</label>
+          <label class="label" for="features">핵심 특징 *</label>
           <textarea id="features" placeholder="예: 보온/보냉 유지, 누수 방지 뚜껑, 차량 컵홀더 호환"></textarea>
         </div>
 
@@ -217,8 +218,8 @@
         </div>
 
         <div class="field">
-          <label class="label" for="bannedTerms">금지 표현</label>
-          <input id="bannedTerms" type="text" placeholder="예: best, guaranteed, medical, eco-friendly" />
+          <label class="label" for="bannedTerms">사용 제외 표현</label>
+          <input id="bannedTerms" type="text" placeholder="예: best, guaranteed, medical" />
         </div>
 
         <div class="row">
@@ -227,7 +228,7 @@
           <button class="secondary" id="clearBtn">초기화</button>
         </div>
 
-        <div class="status" id="statusText">상태: <span class="ok">정상</span> · 입력 대기</div>
+        <div class="status" id="statusText">상태: <span class="ok">준비 완료</span> · 상품 정보를 입력해주세요.</div>
       </section>
 
       <section class="card">
@@ -256,12 +257,12 @@
     </div>
 
     <section class="card" style="margin-top:20px;">
-      <div class="pill">Amazon</div>
-      <div class="pill">Etsy</div>
-      <div class="pill">영문 제목</div>
-      <div class="pill">포인트</div>
-      <div class="pill">설명문</div>
-      <div class="pill">태그</div>
+      <div class="pill">Amazon Listing</div>
+      <div class="pill">Etsy Listing</div>
+      <div class="pill">English Titles</div>
+      <div class="pill">Bullet Points</div>
+      <div class="pill">Description</div>
+      <div class="pill">Tags</div>
     </section>
   </div>
 
@@ -299,6 +300,32 @@
       return items.map((item, idx) => `${idx + 1}. ${item}`).join("\n");
     }
 
+    let loadingTimer = null;
+    let loadingStep = 0;
+
+    function startLoadingUI() {
+      const messages = [
+        "상태: <span class=\"warn\">처리 중</span> · 상품 정보를 분석하고 있습니다. 보통 5~20초 정도 걸릴 수 있습니다.",
+        "상태: <span class=\"warn\">처리 중</span> · 영문 제목과 핵심 포인트를 생성하고 있습니다. 잠시만 기다려주세요.",
+        "상태: <span class=\"warn\">처리 중</span> · 설명문과 태그를 정리하고 있습니다. 정상 처리 중입니다."
+      ];
+
+      loadingStep = 0;
+      statusText.innerHTML = messages[0];
+
+      loadingTimer = setInterval(() => {
+        loadingStep = (loadingStep + 1) % messages.length;
+        statusText.innerHTML = messages[loadingStep];
+      }, 2500);
+    }
+
+    function stopLoadingUI() {
+      if (loadingTimer) {
+        clearInterval(loadingTimer);
+        loadingTimer = null;
+      }
+    }
+
     generateBtn.addEventListener("click", async () => {
       const payload = {
         productName: productName.value.trim(),
@@ -312,17 +339,17 @@
       };
 
       if (!payload.productName || !payload.platform || !payload.features) {
-        statusText.innerHTML = '상태: <span class="danger">입력 부족</span> · 상품명, 플랫폼, 핵심 특징은 필수';
+        statusText.innerHTML = '상태: <span class="danger">입력 필요</span> · 상품명, 플랫폼, 핵심 특징을 입력해주세요.';
         return;
       }
 
       generateBtn.disabled = true;
       generateBtn.textContent = "생성 중...";
-      statusText.innerHTML = '상태: <span class="warn">처리 중</span> · AI 리스팅 생성 요청';
       titlesBox.textContent = "생성 중...";
       bulletsBox.textContent = "생성 중...";
       descriptionBox.textContent = "생성 중...";
       tagsBox.textContent = "생성 중...";
+      startLoadingUI();
 
       try {
         const response = await fetch(API_URL, {
@@ -346,13 +373,15 @@
         descriptionBox.textContent = result.description || "결과가 없습니다.";
         tagsBox.textContent = Array.isArray(result.tags) ? result.tags.join(", ") : "결과가 없습니다.";
 
-        statusText.innerHTML = '상태: <span class="ok">완료</span> · 실제 리스팅 생성 성공';
+        stopLoadingUI();
+        statusText.innerHTML = '상태: <span class="ok">완료</span> · 리스팅이 성공적으로 생성되었습니다.';
       } catch (error) {
+        stopLoadingUI();
         titlesBox.textContent = "오류가 발생했습니다.";
         bulletsBox.textContent = error.message;
         descriptionBox.textContent = "";
         tagsBox.textContent = "";
-        statusText.innerHTML = '상태: <span class="danger">오류</span> · API 호출 실패';
+        statusText.innerHTML = '상태: <span class="danger">오류</span> · 생성 중 문제가 발생했습니다. 입력값을 확인한 뒤 다시 시도해주세요.';
       } finally {
         generateBtn.disabled = false;
         generateBtn.textContent = "리스팅 생성하기";
@@ -369,10 +398,11 @@
       targetCustomer.value = "출퇴근 직장인, 학생, 선물 구매자";
       bannedTerms.value = "best, guaranteed, medical";
       resetResults();
-      statusText.innerHTML = '상태: <span class="ok">예시 준비 완료</span>';
+      statusText.innerHTML = '상태: <span class="ok">예시 입력 완료</span> · 바로 생성할 수 있습니다.';
     });
 
     clearBtn.addEventListener("click", () => {
+      stopLoadingUI();
       productName.value = "";
       platform.value = "Amazon";
       features.value = "";
@@ -382,7 +412,7 @@
       targetCustomer.value = "";
       bannedTerms.value = "";
       resetResults();
-      statusText.innerHTML = '상태: <span class="ok">정상</span> · 입력 대기';
+      statusText.innerHTML = '상태: <span class="ok">준비 완료</span> · 상품 정보를 입력해주세요.';
     });
   </script>
 </body>
